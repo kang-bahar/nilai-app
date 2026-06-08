@@ -257,6 +257,21 @@
       font-size: 11.5px;
     }
     
+    .td-actions { white-space: nowrap; width: 110px; min-width: 110px; }
+    .td-actions .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      font-size: 13px;
+      transition: all 0.15s;
+      line-height: 1;
+    }
+    .td-actions .btn-icon:hover { background: #e2e8f0; }
+    .move-btn { opacity: 0.6; }
+    .move-btn:hover { opacity: 1; }
+
     /* Table number inputs */
     .cell-input { width: 66px; min-width: 66px; max-width: 66px; }
     .num-input {
@@ -493,6 +508,7 @@
 </head>
 <body>
 
+  <!-- ===== HEADER ===== -->
   <header class="app-header">
     <div class="header-top">
       <div class="header-brand">
@@ -510,6 +526,7 @@
     </div>
   </header>
 
+  <!-- ===== PAGE: INPUT NILAI ===== -->
   <div id="page-input" class="page active">
     <div class="card">
       <div class="form-row cols-2">
@@ -551,6 +568,7 @@
     </div>
 
     <div id="table-area" style="display:none;">
+      <!-- FILTER & ACTIONS BAR -->
       <div class="filter-bar">
         <div class="filter-group">
           <label>🔍 Fokus:</label>
@@ -585,6 +603,7 @@
                 <th rowspan="2" style="width:68px">Rata-rata</th>
                 <th rowspan="2" style="width:68px">SAS /<br>ATPM</th>
                 <th rowspan="2" style="width:68px">Rapor<br>Smt 2</th>
+                <th rowspan="2" style="width:68px">Aksi</th>
               </tr>
               <tr class="th-group">
                 <th style="width:68px">1</th><th style="width:68px">2</th><th style="width:68px">3</th><th style="width:68px">4</th>
@@ -598,6 +617,7 @@
     </div>
   </div>
 
+  <!-- ===== PAGE: SISWA ===== -->
   <div id="page-siswa" class="page">
     <div class="card" style="border-left: 4px solid var(--primary);">
       <div class="card-title">
@@ -623,6 +643,7 @@
     </div>
   </div>
 
+  <!-- ===== PAGE: PENGATURAN ===== -->
   <div id="page-settings" class="page">
     <div class="card" style="border-left: 4px solid var(--success);">
       <div class="card-title">
@@ -662,6 +683,7 @@
     </div>
   </div>
 
+  <!-- ===== PASTE MODAL ===== -->
   <div class="modal-overlay hidden" id="modal-paste">
     <div class="modal-box">
       <div class="modal-header">
@@ -726,6 +748,7 @@
     </div>
   </div>
 
+  <!-- ===== STUDENT EDIT/ADD MODAL ===== -->
   <div class="modal-overlay hidden" id="modal-student">
     <div class="modal-box student-modal">
       <div class="modal-header">
@@ -754,6 +777,7 @@
     </div>
   </div>
 
+  <!-- ===== TOAST ===== -->
   <div class="toast" id="toast"></div>
 
   <script>
@@ -954,6 +978,12 @@
         ${readonlyCell('rata2', dn.rata2)}
         ${inputCell('sas', i)}
         ${readonlyCell('rap2', dn.rap2)}
+        <td class="td-actions">
+          <button class="btn-icon move-btn" onclick="moveStudent(${i}, -1)" title="Geser ke atas">⬆</button>
+          <button class="btn-icon move-btn" onclick="moveStudent(${i}, 1)" title="Geser ke bawah">⬇</button>
+          <button class="btn-icon" onclick="showEditStudentManage('${kelas}', ${i})" title="Edit siswa">✏️</button>
+          <button class="btn-icon" onclick="deleteStudentManage('${kelas}', ${i})" title="Hapus siswa" style="color:#ef4444">🗑</button>
+        </td>
       </tr>`;
     });
 
@@ -962,6 +992,27 @@
 
   function escAttr(s) {
     return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ================================================================
+  // MOVE STUDENT
+  // ================================================================
+  function moveStudent(idx, dir) {
+    const kelas = currentKelas;
+    const newIdx = idx + dir;
+    if(newIdx < 0 || newIdx >= siswaSaatIni.length) return;
+
+    const arr = dbSiswa[kelas];
+    const tmp = arr[idx];
+    arr[idx] = arr[newIdx];
+    arr[newIdx] = tmp;
+
+    dbSiswa[kelas] = arr;
+    siswaSaatIni = arr;
+    saveSiswa();
+
+    renderTable(document.getElementById('siswa-filter').value);
+    toast('Posisi siswa diperbarui');
   }
 
   // ================================================================
