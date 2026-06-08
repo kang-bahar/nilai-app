@@ -117,7 +117,7 @@
     .btn-header.active { background: rgba(255,255,255,0.3); border-color: rgba(255,255,255,0.6); }
 
     /* ===== PAGES ===== */
-    .page { display: none; padding-bottom: 100px; min-height: 60vh; }
+    .page { display: none; padding-bottom: 20px; min-height: 60vh; }
     .page.active { display: block; }
 
     /* ===== CARDS ===== */
@@ -203,7 +203,8 @@
     .table-scroll { 
       overflow-x: auto; 
       overflow-y: auto;
-      max-height: 65vh; /* Freezes header within scrollable body */
+      height: calc(100vh - var(--table-offset, 330px));
+      min-height: 280px;
     }
     table {
       width: 100%;
@@ -524,6 +525,11 @@
         <button class="btn-header" id="btn-tab-settings" onclick="switchPage('settings')">⚙️ Pengaturan</button>
       </div>
     </div>
+    <div id="header-info-bar" style="display:none; padding:6px 16px 10px; display:flex; gap:8px; flex-wrap:wrap;">
+      <span id="hib-guru" style="background:rgba(255,255,255,0.15); border-radius:20px; padding:3px 10px; font-size:11px; color:rgba(255,255,255,0.9);"></span>
+      <span id="hib-mapel" style="background:rgba(255,255,255,0.15); border-radius:20px; padding:3px 10px; font-size:11px; color:rgba(255,255,255,0.9);"></span>
+      <span id="hib-kelas" style="background:rgba(255,255,255,0.25); border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700; color:white;"></span>
+    </div>
   </header>
 
   <!-- ===== PAGE: INPUT NILAI ===== -->
@@ -831,6 +837,37 @@
   function saveSesi() {
     localStorage.setItem('almatuq_guru', document.getElementById('guru').value);
     localStorage.setItem('almatuq_mapel', document.getElementById('mapel').value);
+    updateHeaderInfoBar();
+  }
+
+  function updateHeaderInfoBar() {
+    const guru = document.getElementById('guru').value.trim();
+    const mapel = document.getElementById('mapel').value.trim();
+    const kelas = currentKelas;
+    const bar = document.getElementById('header-info-bar');
+    const hibGuru = document.getElementById('hib-guru');
+    const hibMapel = document.getElementById('hib-mapel');
+    const hibKelas = document.getElementById('hib-kelas');
+
+    if(guru) hibGuru.textContent = '👤 ' + guru; else hibGuru.textContent = '';
+    if(mapel) hibMapel.textContent = '📖 ' + mapel; else hibMapel.textContent = '';
+    if(kelas) hibKelas.textContent = '🏫 Kelas ' + kelas; else hibKelas.textContent = '';
+
+    bar.style.display = (guru || mapel || kelas) ? 'flex' : 'none';
+    recalcTableHeight();
+  }
+
+  function recalcTableHeight() {
+    requestAnimationFrame(() => {
+      const header = document.querySelector('.app-header');
+      const statsArea = document.getElementById('stats-area');
+      const filterBar = document.querySelector('.filter-bar');
+      const headerH = header ? header.offsetHeight : 80;
+      const statsH = (statsArea && statsArea.style.display !== 'none') ? statsArea.offsetHeight : 0;
+      const filterH = filterBar ? filterBar.offsetHeight : 0;
+      const offset = headerH + statsH + filterH + 80; // 80px for card, margins, etc.
+      document.querySelector('.table-scroll') && (document.querySelector('.table-scroll').style.height = `calc(100vh - ${offset}px)`);
+    });
   }
 
   // ================================================================
@@ -857,6 +894,8 @@
     if(lastKelas && dbSiswa[lastKelas]) {
       document.getElementById('kelas').value = lastKelas;
       loadSiswa();
+    } else {
+      updateHeaderInfoBar();
     }
   };
 
@@ -930,6 +969,7 @@
 
     renderTable('all');
     updateStats();
+    updateHeaderInfoBar();
   }
 
   function gantiMapel() {
@@ -988,6 +1028,7 @@
     });
 
     tbody.innerHTML = html;
+    recalcTableHeight();
   }
 
   function escAttr(s) {
@@ -1109,7 +1150,7 @@
     const type = document.getElementById('export-type-select').value;
     const t = (type === 'full' || type === 'rap2') ? 'all' : type;
 
-    const mapel = document.getElementById('mapel').value.trim() || 'UMUM';
+    const mapel = document.getElementById('mapel').value.trim().toUpperCase() || 'UMUM';
     const guru = document.getElementById('guru').value.trim() || 'Guru';
     const wb = XLSX.utils.book_new();
     wb.Props = { Author: guru };
@@ -1145,13 +1186,15 @@
     if(typeof XLSX === 'undefined') { toast('Pustaka Excel belum termuat', 'error'); return; }
     
     const type = document.getElementById('export-type-select').value;
-    const mapel = document.getElementById('mapel').value.trim() || 'UMUM';
+    const mapel = document.getElementById('mapel').value.trim().toUpperCase() || 'UMUM';
     const guru = document.getElementById('guru').value.trim() || 'Guru';
     const wb = XLSX.utils.book_new();
     wb.Props = { Author: guru };
 
     const siswaKelas = dbSiswa[currentKelas];
     if(!siswaKelas || !siswaKelas.length) { toast('Tidak ada siswa di kelas ini', 'error'); return; }
+
+    const mapelDisplay = document.getElementById('mapel').value.trim() || 'UMUM';
 
     const dataExcel = siswaKelas.map((s, i) => {
       const dn = dataNilai[mapel + '_' + currentKelas + '_' + s.nama] || emptyNilai();
@@ -1175,11 +1218,12 @@
     });
 
     const ws = XLSX.utils.json_to_sheet(dataExcel);
-    const sheetName = (currentKelas + '-' + mapel).replace(/[\\/\?\*\[\]]/g,'').substring(0, 31);
+    const sheetName = (currentKelas + '-' + mapelDisplay).replace(/[\\\/\?\*\[\]:]/g,'').substring(0, 31);
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
-    XLSX.writeFile(wb, `Nilai_${type.toUpperCase()}_${currentKelas}_${mapel}.xlsx`);
-    toast('Nilai berhasil diekspor', 'success');
+    const guruLabel = guru !== 'Guru' ? '_' + guru.replace(/[^\w]/g,'') : '';
+    XLSX.writeFile(wb, `Nilai_${type.toUpperCase()}_${currentKelas}_${mapelDisplay}${guruLabel}.xlsx`);
+    toast('Nilai berhasil diekspor ✅', 'success');
   }
 
   // ================================================================
